@@ -1,0 +1,78 @@
+group 'com.dt'
+version '0.1.1'
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:5.2.0"
+    }
+}
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: "com.github.johnrengelman.shadow"
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+
+test {
+    exclude 'com/dt/**'
+}
+
+repositories {
+    maven {
+        url 'https://maven.aliyun.com/repository/jcenter'
+    }
+    mavenLocal()
+    jcenter()
+    mavenCentral()
+}
+
+shadowJar {
+    baseName = 'ParseFile'
+    classifier = null
+    version = null
+    zip64 true
+    manifest {
+        attributes 'Main-Class': 'com.dt.ParseFileEntry'
+    }
+}
+
+
+dependencies {
+
+    // https://mvnrepository.com/artifact/commons-collections/commons-collections
+    compile group: 'commons-collections', name: 'commons-collections', version: '3.2.2'
+
+
+    compile('org.slf4j:jcl-over-slf4j:1.7.25')
+    compile('ch.qos.logback:logback-classic:1.2.3')
+    compile('org.slf4j:jul-to-slf4j:1.7.25')
+    compile('org.slf4j:log4j-over-slf4j:1.7.25')
+    compile group: 'org.apache.commons', name: 'commons-configuration2', version: '2.1.1'
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+    compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.10'
+    compile 'com.google.code.gson:gson:2.8.0'
+    compile group: 'org.json', name: 'json', version: '20090211'
+    compile 'cn.hutool:hutool-all:5.0.7'
+    compile 'com.beust:jcommander:1.78'
+    compile 'io.lettuce:lettuce-core:5.1.8.RELEASE'
+    compile 'org.iq80.leveldb:leveldb-api:0.12'
+    compile 'org.iq80.leveldb:leveldb:0.12'
+    compile group: 'commons-io', name: 'commons-io', version: '2.7'
+    // https://mvnrepository.com/artifact/commons-cli/commons-cli
+    compile group: 'commons-cli', name: 'commons-cli', version: '1.4'
+
+
+    compile group: 'com.alibaba', name: 'fastjson', version: '1.2.62'
+    compile 'cglib:cglib:3.2.10'
+    compileOnly 'org.projectlombok:lombok:1.18.8'
+    annotationProcessor 'org.projectlombok:lombok:1.18.8'
+    testCompileOnly 'org.projectlombok:lombok:1.18.8'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.8'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
