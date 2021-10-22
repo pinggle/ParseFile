@@ -3,6 +3,7 @@ package com.dt;
 import com.beust.jcommander.JCommander;
 import com.dt.config.DTModel;
 import com.dt.config.TestArgs;
+import com.dt.module.dex.service.impl.ParseDexFileService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -31,6 +32,7 @@ public class ParseFileEntry {
             if (testArgs.getRunMode().equalsIgnoreCase(DTModel.MODE_PRINT)) {
                 log.info(TAG, "start parse dex file");
 
+                ParseDexFileService.getInstance().parseDexFile("/tmp/test.classes.dex");
 
             } else {
                 log.info(TAG, "unknown command : [{}]", testArgs.getRunMode());
