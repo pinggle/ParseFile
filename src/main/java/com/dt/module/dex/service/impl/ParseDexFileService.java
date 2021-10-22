@@ -5,6 +5,7 @@ import com.dt.common.TransformUtils;
 import com.dt.module.dex.entity.DexFileInfo;
 import com.dt.module.dex.entity.DexHeader;
 import com.dt.module.dex.entity.DexStringInfo;
+import com.dt.module.dex.entity.DexTypeInfo;
 import com.dt.module.dex.service.IParseDexFile;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -125,6 +126,7 @@ public class ParseDexFileService implements IParseDexFile {
                 int stringInfoLen = TransformUtils.byteToInt(size);
                 String stringInfoData = new String(TransformUtils.copy(fileByteArray, stringInfoOffset + 1, stringInfoLen));
                 if (StringUtils.isNotEmpty(stringInfoData)) {
+                    // 打印的信息太多,先注释;
                     //log.info("read: len->[{}],data->[{}]", stringInfoLen, stringInfoData);
                     dexStringInfo.setLen(stringInfoLen);
                     dexStringInfo.setData(stringInfoData);
@@ -134,9 +136,30 @@ public class ParseDexFileService implements IParseDexFile {
                 }
             }
 
-            log.info("=================== Dex 实际读取字符串个数:[{}] ===================", readCount);
+            log.info("=================== Dex  ===================", readCount);
 
             log.info("=================== Dex 读取字符串 End ===================");
+
+
+            log.info("=================== Dex 读取类型信息 Start ===================");
+            int dexTypeInfoTotal = TransformUtils.bytes2Int(dexFileInfo.getDexHeader().getTypeIdsSize());
+            int realReadTypeInfoCount = 0;
+            for (int i = 0; i < dexTypeInfoTotal; i++) {
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                int typeInfoIndex = TransformUtils.bytes2Int(tmpFourBuffer);
+                dexFileInfo.getDexTypeInfos().add(new DexTypeInfo(typeInfoIndex));
+                if (typeInfoIndex < dexFileInfo.getDexStringInfos().size()) {
+                    // 打印的信息太多,先注释;
+//                    log.info("readTypeInfo[{}]: index:[{}],len:[{}],data:[{}]", i, typeInfoIndex,
+//                            dexFileInfo.getDexStringInfos().get(typeInfoIndex).getLen(),
+//                            dexFileInfo.getDexStringInfos().get(typeInfoIndex).getData());
+                    realReadTypeInfoCount++;
+                } else {
+                    log.error("readTypeInfo out range: index:[{}]", typeInfoIndex);
+                }
+            }
+            log.info("======= Dex 计划读取类型个数:[{}],实际读取类型个数:[{}] =======", dexTypeInfoTotal, realReadTypeInfoCount);
+            log.info("=================== Dex 读取类型信息 End ===================");
 
 
         } catch (Exception e) {

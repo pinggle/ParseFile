@@ -14,5 +14,6 @@ public class DexFileInfo {
     public DexHeader dexHeader = new DexHeader();
 
     public ArrayList<DexStringInfo> dexStringInfos = new ArrayList<>();
+    public ArrayList<DexTypeInfo> dexTypeInfos = new ArrayList<>();
 
 }
