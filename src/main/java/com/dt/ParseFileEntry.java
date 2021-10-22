@@ -33,6 +33,7 @@ public class ParseFileEntry {
                 log.info(TAG, "start parse dex file");
 
                 ParseDexFileService.getInstance().parseDexFile("/tmp/test.classes.dex");
+//                ParseDexFileService.getInstance().parseDexFile("/tmp/classes.dex");
 
             } else {
                 log.info(TAG, "unknown command : [{}]", testArgs.getRunMode());
