@@ -26,6 +26,8 @@ public class DexProtoInfo {
     int parametersOff;//方法参数列表的偏移地址;
     DexTypeList dexTypeList = new DexTypeList();//方法参数信息;
 
+    String protoInfo;
+
     /**
      * 存放方法的参数列表;
      */
