@@ -17,7 +17,8 @@ public class TransformUtils {
      */
     public static String withNoEscape(String data) {
         try {
-            String tmpData = data.replace("\n", "\\n");
+            String tmpData1 = data.replace("\n", "\\n");
+            String tmpData = tmpData1.replace("\0", "\\0");
             return tmpData;
         } catch (Exception e) {
             log.error("Exception:[{}], {}", e.getMessage(), e);
@@ -36,6 +37,15 @@ public class TransformUtils {
                 | (bytes[2] & 0xFF) << 16
                 | (bytes[1] & 0xFF) << 8
                 | bytes[0] & 0xFF;
+    }
+
+    /**
+     * byte[] 转 unsigned short
+     */
+    public static int bytes2UnsignedShort(byte[] bytes) {
+        if (null == bytes || bytes.length == 0) return 0;
+        return ((bytes[0] & 0xff) |
+                ((bytes[1] & 0xff)) << 8);
     }
 
     /**

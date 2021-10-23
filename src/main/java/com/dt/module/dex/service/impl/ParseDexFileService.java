@@ -2,18 +2,15 @@ package com.dt.module.dex.service.impl;
 
 import cn.hutool.core.io.FileUtil;
 import com.dt.common.TransformUtils;
-import com.dt.module.dex.entity.DexFileInfo;
-import com.dt.module.dex.entity.DexHeader;
-import com.dt.module.dex.entity.DexStringInfo;
-import com.dt.module.dex.entity.DexTypeInfo;
+import com.dt.module.dex.entity.*;
 import com.dt.module.dex.service.IParseDexFile;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 
 import static com.dt.module.dex.entity.DexHeader.DEX_FIELD_FOUR_SIZE;
+import static com.dt.module.dex.entity.DexProtoInfo.DexTypeItemUnitSize;
 
 /**
  * 解析Dex文件;
@@ -38,16 +35,15 @@ public class ParseDexFileService implements IParseDexFile {
             }
 
             byte[] fileByteArray = FileUtil.readBytes(filePath);
-            log.info("read file :[{}]", fileByteArray);
+//            log.info("read file :[{}]", fileByteArray);
 
             byte[] tmpFourBuffer = new byte[DEX_FIELD_FOUR_SIZE];
-            byte[] tmpStringBuffer = new byte[BUFFER_MAX_SIZE];
             DexFileInfo dexFileInfo = new DexFileInfo();
 
-            RandomAccessFile randomAccessDexFile = new RandomAccessFile(filePath, "r");
 
             InputStream dexFileInputStream = FileUtil.getInputStream(filePath);
 
+            ///////////////////////// 读取Dex头部信息 /////////////////////////
             log.info("=================== Dex Header Start ===================");
             dexFileInputStream.read(dexFileInfo.getDexHeader().getMagic(), 0, DexHeader.DEX_HEADER_MAGIC_SIZE);
             log.info("Magic(Dex文件标识):[{}]", TransformUtils.withNoEscape(new String(dexFileInfo.getDexHeader().getMagic())));
@@ -103,9 +99,10 @@ public class ParseDexFileService implements IParseDexFile {
             dexFileInputStream.read(dexFileInfo.getDexHeader().getDataOff(), 0, DEX_FIELD_FOUR_SIZE);
             log.info("dataSection(数据段):offset:[{}],size:[{}]", TransformUtils.bytes2Int(dexFileInfo.getDexHeader().getDataOff()),
                     TransformUtils.bytes2Int(dexFileInfo.getDexHeader().getDataSize()));
-
             log.info("=================== Dex Header End ===================");
 
+
+            ///////////////////////// 读取Dex字符串信息 /////////////////////////
             log.info("=================== Dex 读取字符串 Start ===================");
             int dexStringInfoTotal = TransformUtils.bytes2Int(dexFileInfo.getDexHeader().getStringIdsSize());
             for (int i = 0; i < dexStringInfoTotal; i++) {
@@ -113,9 +110,7 @@ public class ParseDexFileService implements IParseDexFile {
                 int stringInfoOffset = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInfo.getDexStringInfos().add(new DexStringInfo(stringInfoOffset));
             }
-
             log.info("=================== Dex 计划读取字符串个数:[{}] ===================", dexFileInfo.getDexStringInfos().size());
-
             /**
              * 开始遍历读取字符串,根据偏移,读取1字节长度出来,然后继续读取指定长度的字符串;
              */
@@ -135,24 +130,26 @@ public class ParseDexFileService implements IParseDexFile {
                     log.error("read: len->[{}],data->[{}]", stringInfoLen, stringInfoData);
                 }
             }
-
             log.info("=================== Dex  ===================", readCount);
-
             log.info("=================== Dex 读取字符串 End ===================");
 
 
+            ///////////////////////// 读取Dex类型信息 /////////////////////////
             log.info("=================== Dex 读取类型信息 Start ===================");
             int dexTypeInfoTotal = TransformUtils.bytes2Int(dexFileInfo.getDexHeader().getTypeIdsSize());
             int realReadTypeInfoCount = 0;
             for (int i = 0; i < dexTypeInfoTotal; i++) {
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 int typeInfoIndex = TransformUtils.bytes2Int(tmpFourBuffer);
-                dexFileInfo.getDexTypeInfos().add(new DexTypeInfo(typeInfoIndex));
+                DexTypeInfo tmpTypeInfoNode = new DexTypeInfo(typeInfoIndex);
                 if (typeInfoIndex < dexFileInfo.getDexStringInfos().size()) {
+                    // 根据读取的数据,作为字符串池的索引,提取数据即可。
+                    tmpTypeInfoNode.setLen(dexFileInfo.getDexStringInfos().get(typeInfoIndex).getLen());
+                    tmpTypeInfoNode.setData(dexFileInfo.getDexStringInfos().get(typeInfoIndex).getData());
                     // 打印的信息太多,先注释;
 //                    log.info("readTypeInfo[{}]: index:[{}],len:[{}],data:[{}]", i, typeInfoIndex,
-//                            dexFileInfo.getDexStringInfos().get(typeInfoIndex).getLen(),
-//                            dexFileInfo.getDexStringInfos().get(typeInfoIndex).getData());
+//                            tmpTypeInfoNode.getLen(), tmpTypeInfoNode.getData());
+                    dexFileInfo.getDexTypeInfos().add(tmpTypeInfoNode);
                     realReadTypeInfoCount++;
                 } else {
                     log.error("readTypeInfo out range: index:[{}]", typeInfoIndex);
@@ -160,6 +157,61 @@ public class ParseDexFileService implements IParseDexFile {
             }
             log.info("======= Dex 计划读取类型个数:[{}],实际读取类型个数:[{}] =======", dexTypeInfoTotal, realReadTypeInfoCount);
             log.info("=================== Dex 读取类型信息 End ===================");
+
+
+            ///////////////////////// 读取Dex方法声明信息 /////////////////////////
+            log.info("=================== Dex 读取方法声明信息 Start ===================");
+            int dexProtoInfoSize = TransformUtils.byte2Int(dexFileInfo.getDexHeader().getProtoIdsSize());
+            int dexProtoInfoOff = TransformUtils.byte2Int(dexFileInfo.getDexHeader().getProtoIdsOff());
+            for (int i = 0; i < dexProtoInfoSize; i++) {
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                //方法声明字符串指向DexStringId中的index;
+                int shortIdIdx = TransformUtils.bytes2Int(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                //方法返回类型,指向DexTypeId的index;
+                int returnTypeIdx = TransformUtils.bytes2Int(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                //方法参数列表的偏移地址;
+                int parametersOff = TransformUtils.bytes2Int(tmpFourBuffer);
+                DexProtoInfo tmpProtoInfoNode = new DexProtoInfo(shortIdIdx, returnTypeIdx, parametersOff);
+
+                log.info("proto-000:[{}],[{}],[{}]", shortIdIdx, returnTypeIdx, parametersOff);
+//                shortIdIdx = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, dexProtoInfoOff + i*12, 4));
+//                returnTypeIdx = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, dexProtoInfoOff + i*12 +4, 4));
+//                parametersOff = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, dexProtoInfoOff + i*12 +4+4, 4));
+//                log.info("proto-001:[{}],[{}],[{}]", shortIdIdx,returnTypeIdx,parametersOff);
+
+                log.info("protoInfo:desc:[{}],returnType:[{}]", dexFileInfo.getDexStringInfos().get(shortIdIdx).getData(),
+                        dexFileInfo.getDexTypeInfos().get(returnTypeIdx).getData());
+
+                if (0 != parametersOff) {
+                    // 读取方法参数信息;
+                    int dexTypeItemSize = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, parametersOff, 4));
+                    log.info("read dex type info with size:[{}]", dexTypeItemSize);
+
+                    tmpProtoInfoNode.getDexTypeList().setSize(dexTypeItemSize);
+                    for (int j = 0; j < dexTypeItemSize; j++) {
+                        int typeIdx = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, parametersOff + 4 + j * DexTypeItemUnitSize, 2));
+                        DexProtoInfo.DexTypeItem dexTypeItemNode = new DexProtoInfo.DexTypeItem();
+                        dexTypeItemNode.setTypeIdx(typeIdx);
+                        if (typeIdx < dexFileInfo.getDexTypeInfos().size()) {
+                            log.info("read proto 方法参数列表[{}]:[{}] => typeInfoIdx:[{}]", j, dexFileInfo.getDexTypeInfos().get(typeIdx).getData(), typeIdx);
+                        } else {
+                            log.error("read proto error with index [{}] out of limit size [{}]", typeIdx, dexFileInfo.getDexTypeInfos().size());
+                        }
+                        tmpProtoInfoNode.getDexTypeList().getDexTypeItems().add(dexTypeItemNode);
+                    }
+                } else {
+                    log.info("protoInfo-void-func:desc:[{}],returnType:[{}]", dexFileInfo.getDexStringInfos().get(shortIdIdx).getData(),
+                            dexFileInfo.getDexTypeInfos().get(returnTypeIdx).getData());
+                }
+                // 添加节点到ProtoInfo数组;
+                if (null != tmpProtoInfoNode) {
+                    dexFileInfo.getDexProtoInfos().add(tmpProtoInfoNode);
+                }
+
+            }
+            log.info("=================== Dex 读取方法声明信息 End ===================");
 
 
         } catch (Exception e) {

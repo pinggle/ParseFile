@@ -4,6 +4,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
+ * 字符串信息;
+ *
  * @author yanping
  * @date 2021/10/22 8:16 下午
  */

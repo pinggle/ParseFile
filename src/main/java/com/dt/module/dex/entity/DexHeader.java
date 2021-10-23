@@ -3,6 +3,8 @@ package com.dt.module.dex.entity;
 import lombok.Data;
 
 /**
+ * Dex文件头信息;
+ *
  * @author yanping
  * @date 2021/10/22 6:10 下午
  */

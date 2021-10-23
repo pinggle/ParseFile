@@ -53,6 +53,7 @@ dependencies {
     compile('ch.qos.logback:logback-classic:1.2.3')
     compile('org.slf4j:jul-to-slf4j:1.7.25')
     compile('org.slf4j:log4j-over-slf4j:1.7.25')
+
     compile group: 'org.apache.commons', name: 'commons-configuration2', version: '2.1.1'
     // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.10'
