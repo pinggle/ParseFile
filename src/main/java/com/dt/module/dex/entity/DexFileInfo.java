@@ -20,5 +20,6 @@ public class DexFileInfo {
     public ArrayList<DexProtoInfo> dexProtoInfos = new ArrayList<>();
     public ArrayList<DexFieldInfo> fieldIds = new ArrayList<>();
     public ArrayList<DexMethodInfo> methodIds = new ArrayList<>();
+    public ArrayList<ClassDefInfo> classDefs = new ArrayList<>();
 
 }

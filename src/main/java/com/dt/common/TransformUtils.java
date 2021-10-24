@@ -125,4 +125,20 @@ public class TransformUtils {
     public static int fromBytes(byte b1, byte b2, byte b3, byte b4) {
         return b1 << 24 | (b2 & 0xFF) << 16 | (b3 & 0xFF) << 8 | (b4 & 0xFF);
     }
+
+    public static int readUnsignedLeb128(byte[] src, int offset) {
+        int result = 0;
+        int count = 0;
+        int cur;
+        do {
+            cur = copy(src, offset, 1)[0];
+            cur &= 0xff;
+            result |= (cur & 0x7f) << count * 7;
+            count++;
+            offset++;
+            //DexParser.POSITION++;
+        } while ((cur & 0x80) == 128 && count < 5);
+        return result;
+    }
+
 }

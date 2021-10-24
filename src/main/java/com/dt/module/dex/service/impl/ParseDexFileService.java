@@ -270,6 +270,46 @@ public class ParseDexFileService implements IParseDexFile {
             log.info("=================== Dex 读取方法信息 End ===================");
 
 
+            ///////////////////////// 读取Dex类的所有信息 /////////////////////////
+            log.info("=================== Dex 读取类的所有信息 Start ===================");
+            int dexClassDefsSize = TransformUtils.byte2Int(dexFileInfo.getDexHeader().getClassDefsSize());
+            for (int i = 0; i < dexClassDefsSize; i++) {
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 索引,指向typeIds,表示类信息;
+                int classIdx = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 访问标识,如public;
+                int accessFlags = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 索引,指向typeIds,标识父类信息;
+                int superclassIdx = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 指向DexTypeList的偏移地址,表示接口信息;
+                int interfacesOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 索引,指向stringIds,表示源文件名称;
+                int sourceFileIdx = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 指向annotations_directory_item的偏移地址,表示注解信息;
+                int annotationsOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 指向class_data_item的偏移地址,表示类的数据部分;
+                int classDataOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
+                // 指向DexEncodedArray的偏移地址,表示类的静态数据;
+                int staticValueOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+
+                ClassDefInfo classDefInfoNode = new ClassDefInfo(classIdx, accessFlags, superclassIdx,
+                        interfacesOff, sourceFileIdx, annotationsOff, classDataOff, staticValueOff);
+                classDefInfoNode.getParseInfo().setClassName(dexFileInfo.getDexStringInfos().get(sourceFileIdx).getData());
+                dexFileInfo.getClassDefs().add(classDefInfoNode);
+
+                log.info("类信息=>类:[{}]", classDefInfoNode.getParseInfo().getClassName());
+
+
+            }
+            log.info("=================== Dex 读取类的所有信息 End ===================");
+
         } catch (Exception e) {
             log.error("Exception: [{}], {}", e.getMessage(), e);
         }
