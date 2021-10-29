@@ -304,9 +304,19 @@ public class ParseDexFileService implements IParseDexFile {
                 // 新建结构体,加入到dex文件信息;
                 ClassDefInfo classDefInfoNode = new ClassDefInfo(classIdx, accessFlags, superclassIdx,
                         interfacesOff, sourceFileIdx, annotationsOff, classDataOff, staticValueOff);
+
+                if (sourceFileIdx < 0 || sourceFileIdx >= dexFileInfo.getDexStringInfos().size()) {
+                    continue;
+                }
                 classDefInfoNode.getParseInfo().setClassName(dexFileInfo.getDexStringInfos().get(sourceFileIdx).getData());
                 dexFileInfo.getClassDefs().add(classDefInfoNode);
-                log.info("类信息=>类:[{}]", classDefInfoNode.getParseInfo().getClassName());
+                log.info("类信息=>类[{}]:[{}]", i, classDefInfoNode.getParseInfo().getClassName());
+
+
+                boolean enableParseFunction = true;
+//                enableParseFunction = classDefInfoNode.getParseInfo().getClassName().contains("Test");
+
+                //if(classDefInfoNode.getParseInfo().getClassName())
 //                // 解析接口信息;
 //                int interfacesIdx = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, interfacesOff, 4));
 //                log.info("类信息=>接口数量:[{}]", interfacesIdx);
@@ -316,7 +326,9 @@ public class ParseDexFileService implements IParseDexFile {
 //                    log.info("类信息=>获取接口信息出错");
 //                }
                 // 解析类的信息;
-                log.info("类信息的偏移地址:[{}]", classDataOff);
+                if (enableParseFunction) {
+                    log.info("类信息的偏移地址:[{}]", classDataOff);
+                }
                 if (0 == classDataOff) {
                     continue;
                 }
@@ -326,22 +338,30 @@ public class ParseDexFileService implements IParseDexFile {
                 int readOffset = classDataOff;
                 LebReadResult readResult = new LebReadResult();
                 TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
-                log.info("静态字段个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                if (enableParseFunction) {
+                    log.info("静态字段个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                }
                 classDefInfoNode.getClassDataItem().setStaticFieldSize(readResult.getResult());
                 readOffset += readResult.getReadCnt();
 
                 TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
-                log.info("实例字段个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                if (enableParseFunction) {
+                    log.info("实例字段个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                }
                 classDefInfoNode.getClassDataItem().setInstanceFieldSize(readResult.getResult());
                 readOffset += readResult.getReadCnt();
 
                 TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
-                log.info("直接方法个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                if (enableParseFunction) {
+                    log.info("直接方法个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                }
                 classDefInfoNode.getClassDataItem().setDirectMethodsSize(readResult.getResult());
                 readOffset += readResult.getReadCnt();
 
                 TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
-                log.info("虚方法个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                if (enableParseFunction) {
+                    log.info("虚方法个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                }
                 classDefInfoNode.getClassDataItem().setVirtualMethodsSize(readResult.getResult());
                 readOffset += readResult.getReadCnt();
 
@@ -356,9 +376,11 @@ public class ParseDexFileService implements IParseDexFile {
                         TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
                         staticFieldInfo.setAccessFlag(readResult.getResult());
                         readOffset += readResult.getReadCnt();
-                        log.info("静态字段[{}]:fieldId:[{}],访问标识:[{}]", j,
-                                dexFileInfo.getFieldIds().get(staticFieldInfo.getFieldIdx()),
-                                staticFieldInfo.getAccessFlag());
+                        if (enableParseFunction) {
+                            log.info("静态字段[{}]:fieldId:[{}],访问标识:[{}]", j,
+                                    dexFileInfo.getFieldIds().get(staticFieldInfo.getFieldIdx()),
+                                    staticFieldInfo.getAccessFlag());
+                        }
                     } else {
                         log.error("读取静态字段 error with offset [{}], exit with [{}] < [{}]", i,
                                 readResult.getResult(),
@@ -378,9 +400,11 @@ public class ParseDexFileService implements IParseDexFile {
                         TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
                         staticFieldInfo.setAccessFlag(readResult.getResult());
                         readOffset += readResult.getReadCnt();
-                        log.info("实例字段[{}]:fieldId:[{}],访问标识:[{}]", j,
-                                dexFileInfo.getFieldIds().get(staticFieldInfo.getFieldIdx()),
-                                staticFieldInfo.getAccessFlag());
+                        if (enableParseFunction) {
+                            log.info("实例字段[{}]:fieldId:[{}],访问标识:[{}]", j,
+                                    dexFileInfo.getFieldIds().get(staticFieldInfo.getFieldIdx()),
+                                    staticFieldInfo.getAccessFlag());
+                        }
                     } else {
                         log.error("读取实例字段 error with offset [{}], exit with [{}] < [{}]", i,
                                 readResult.getResult(),
@@ -409,10 +433,48 @@ public class ParseDexFileService implements IParseDexFile {
                         int methodClassIdx = dexFileInfo.getMethodIds().get(methodIdx).getClassIdx();
                         String methodName = dexFileInfo.getDexStringInfos().get(methodNameIdx).getData();
 
-                        log.info("直接方法信息:idx:[{}]:methodId:[{}],访问标识:[{}],codeOff:[{}]", j,
-                                methodName,
-                                AccessFlagEnum.valueOfName(directMethodInfo.getAccessFlags()),
-                                directMethodInfo.getCodeOff());
+                        if (methodName.equalsIgnoreCase("testFunc")) {
+                            log.info("find testFunc with 直接方法信息 [{}][{}]", i, j);
+                            enableParseFunction = true;
+                        }
+
+                        if (enableParseFunction) {
+
+                            log.info("直接方法信息:idx:[{}]:methodId:[{}],访问标识:[{}],codeOff:[{}]", j,
+                                    methodName,
+                                    AccessFlagEnum.valueOfName(directMethodInfo.getAccessFlags()),
+                                    directMethodInfo.getCodeOff());
+
+                            // 解析方法信息;
+                            int codeOffset = directMethodInfo.getCodeOff();
+                            if (0 == codeOffset) {
+                                continue;
+                            }
+
+                            int registerSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// 寄存器个数;
+                            codeOffset += 2;
+                            int insSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// 参数个数;
+                            codeOffset += 2;
+                            int outsSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// 调用其他方法时使用的寄存器个数
+                            codeOffset += 2;
+                            int triesSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// try/cache语句个数
+                            codeOffset += 2;
+                            int debugInfoOff = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, codeOffset, 4));// debug信息的偏移地址
+                            codeOffset += 4;
+                            int insnsSize = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, codeOffset, 4));// 指令集的个数
+                            codeOffset += 4;
+                            log.info("寄存器个数:[{}],参数个数:[{}],debug信息偏移[{}],指令集个数:[{}]", registerSize,
+                                    insSize, debugInfoOff, insnsSize);
+                            byte[] insNsArray = TransformUtils.copy(fileByteArray, codeOffset, insnsSize * 2);
+                            StringBuilder insNsPrint = new StringBuilder();
+                            for (int k = 0; k < insnsSize * 2; k++) {
+                                insNsPrint.append(String.format("%02X ", insNsArray[k]));
+                            }
+                            log.info("直接方法[{}]指令输出:[{}]", methodName, insNsPrint.toString());
+
+                        }
+
+
                     } else {
                         log.error("读取直接方法信息 error with offset [{}], exit with [{}] < [{}]", i,
                                 readResult.getResult(),
@@ -441,10 +503,47 @@ public class ParseDexFileService implements IParseDexFile {
                         int methodClassIdx = dexFileInfo.getMethodIds().get(methodIdx).getClassIdx();
                         String methodName = dexFileInfo.getDexStringInfos().get(methodNameIdx).getData();
 
-                        log.info("虚方法信息:idx:[{}]:methodName:[{}],访问标识:[{}],codeOff:[{}]", j,
-                                methodName,
-                                AccessFlagEnum.valueOfName(virtualMethodInfo.getAccessFlags()),
-                                virtualMethodInfo.getCodeOff());
+                        if (methodName.equalsIgnoreCase("testFunc")) {
+                            log.info("find testFunc with 虚方法信息 [{}][{}]", i, j);
+                            enableParseFunction = true;
+                        }
+
+                        if (enableParseFunction) {
+                            log.info("虚方法信息:idx:[{}]:methodName:[{}],访问标识:[{}],codeOff:[{}]", j,
+                                    methodName,
+                                    AccessFlagEnum.valueOfName(virtualMethodInfo.getAccessFlags()),
+                                    virtualMethodInfo.getCodeOff());
+
+
+//                            // 解析方法信息;
+                            int codeOffset = virtualMethodInfo.getCodeOff();
+                            if (0 == codeOffset) {
+                                continue;
+                            }
+
+                            int registerSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// 寄存器个数;
+                            codeOffset += 2;
+                            int insSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// 参数个数;
+                            codeOffset += 2;
+                            int outsSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// 调用其他方法时使用的寄存器个数
+                            codeOffset += 2;
+                            int triesSize = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, codeOffset, 2));// try/cache语句个数
+                            codeOffset += 2;
+                            int debugInfoOff = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, codeOffset, 4));// debug信息的偏移地址
+                            codeOffset += 4;
+                            int insnsSize = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, codeOffset, 4));// 指令集的个数
+                            codeOffset += 4;
+                            log.info("寄存器个数:[{}],参数个数:[{}],debug信息偏移[{}],指令集个数:[{}],指令开始地址:[{}]", registerSize,
+                                    insSize, debugInfoOff, insnsSize, codeOffset);
+
+                            byte[] insNsArray = TransformUtils.copy(fileByteArray, codeOffset, insnsSize * 2);
+                            StringBuilder insNsPrint = new StringBuilder();
+                            for (int k = 0; k < insnsSize * 2; k++) {
+                                insNsPrint.append(String.format("%02X ", insNsArray[k]));
+                            }
+                            log.info("虚方法[{}]指令输出:[{}]", methodName, insNsPrint.toString());
+
+                        }
                     } else {
                         log.error("读取虚方法信息 error with offset [{}], exit with [{}] < [{}]", i,
                                 readResult.getResult(),

@@ -32,8 +32,8 @@ public class ParseFileEntry {
             if (testArgs.getRunMode().equalsIgnoreCase(DTModel.MODE_PRINT)) {
                 log.info(TAG, "start parse dex file");
 
-//                ParseDexFileService.getInstance().parseDexFile("/tmp/test.classes.dex");
-                ParseDexFileService.getInstance().parseDexFile("/tmp/classes.dex");
+                ParseDexFileService.getInstance().parseDexFile("/tmp/test.classes.dex");
+//                ParseDexFileService.getInstance().parseDexFile("/tmp/classes.dex");
 //                ParseDexFileService.getInstance().parseDexFile("C:\\tmp\\test.classes.dex");
 
             } else {
