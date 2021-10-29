@@ -3,6 +3,7 @@ package com.dt.module.dex.service.impl;
 import cn.hutool.core.io.FileUtil;
 import com.dt.common.TransformUtils;
 import com.dt.module.dex.entity.*;
+import com.dt.module.dex.enums.AccessFlagEnum;
 import com.dt.module.dex.service.IParseDexFile;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -402,9 +403,15 @@ public class ParseDexFileService implements IParseDexFile {
                         TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
                         directMethodInfo.setCodeOff(readResult.getResult());
                         readOffset += readResult.getReadCnt();
+
+                        int methodIdx = directMethodInfo.getMethodIdx();
+                        int methodNameIdx = dexFileInfo.getMethodIds().get(methodIdx).getNameIdx();
+                        int methodClassIdx = dexFileInfo.getMethodIds().get(methodIdx).getClassIdx();
+                        String methodName = dexFileInfo.getDexStringInfos().get(methodNameIdx).getData();
+
                         log.info("直接方法信息:idx:[{}]:methodId:[{}],访问标识:[{}],codeOff:[{}]", j,
-                                dexFileInfo.getMethodIds().get(directMethodInfo.getMethodIdx()).getNameIdx(),
-                                directMethodInfo.getAccessFlags(),
+                                methodName,
+                                AccessFlagEnum.valueOfName(directMethodInfo.getAccessFlags()),
                                 directMethodInfo.getCodeOff());
                     } else {
                         log.error("读取直接方法信息 error with offset [{}], exit with [{}] < [{}]", i,
@@ -428,9 +435,15 @@ public class ParseDexFileService implements IParseDexFile {
                         TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
                         virtualMethodInfo.setCodeOff(readResult.getResult());
                         readOffset += readResult.getReadCnt();
-                        log.info("虚方法信息:idx:[{}]:methodId:[{}],访问标识:[{}],codeOff:[{}]", j,
-                                dexFileInfo.getMethodIds().get(virtualMethodInfo.getMethodIdx()).getNameIdx(),
-                                virtualMethodInfo.getAccessFlags(),
+
+                        int methodIdx = virtualMethodInfo.getMethodIdx();
+                        int methodNameIdx = dexFileInfo.getMethodIds().get(methodIdx).getNameIdx();
+                        int methodClassIdx = dexFileInfo.getMethodIds().get(methodIdx).getClassIdx();
+                        String methodName = dexFileInfo.getDexStringInfos().get(methodNameIdx).getData();
+
+                        log.info("虚方法信息:idx:[{}]:methodName:[{}],访问标识:[{}],codeOff:[{}]", j,
+                                methodName,
+                                AccessFlagEnum.valueOfName(virtualMethodInfo.getAccessFlags()),
                                 virtualMethodInfo.getCodeOff());
                     } else {
                         log.error("读取虚方法信息 error with offset [{}], exit with [{}] < [{}]", i,
