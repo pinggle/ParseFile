@@ -4,6 +4,7 @@ import cn.hutool.core.io.FileUtil;
 import com.dt.common.TransformUtils;
 import com.dt.module.dex.entity.*;
 import com.dt.module.dex.enums.AccessFlagEnum;
+import com.dt.module.dex.enums.MapItemTypeEnum;
 import com.dt.module.dex.service.IParseDexFile;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -555,6 +556,30 @@ public class ParseDexFileService implements IParseDexFile {
 
             }
             log.info("=================== Dex 读取类的所有信息 End ===================");
+
+            log.info("=================== Dex 读取MapItem信息 Start ===================");
+            int mapItemOffset = TransformUtils.bytes2Int(dexFileInfo.getDexHeader().getMapOff());
+            int readOffset = mapItemOffset;
+            int mapItemSize = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, readOffset, 4));
+            log.info("Map Item size : [{}]", mapItemSize);
+            readOffset += 4;
+
+            for (int i = 0; i < mapItemSize; i++) {
+                int mapItemType = TransformUtils.bytes2UnsignedShort(TransformUtils.copy(fileByteArray, readOffset, 2));
+                readOffset += 2;
+                // 未使用;(跳过2字节)
+                readOffset += 2;
+                // 在指定偏移量处找到的项数量;
+                long mapSize = TransformUtils.bytes2UnsignedInt(TransformUtils.copy(fileByteArray, readOffset, 4));
+                readOffset += 4;
+                // 从文件开头到相关项的偏移量;
+                long mapOffset = TransformUtils.bytes2UnsignedInt(TransformUtils.copy(fileByteArray, readOffset, 4));
+                readOffset += 4;
+                log.info("MapItem => Type:[{}],size:[{}],offset:[{}]",
+                        MapItemTypeEnum.valueOfName(mapItemType), mapSize, mapOffset);
+            }
+            log.info("=================== Dex 读取MapItem信息 End ===================");
+
 
         } catch (Exception e) {
             log.error("Exception: [{}], {}", e.getMessage(), e);
