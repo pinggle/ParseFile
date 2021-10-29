@@ -1,5 +1,6 @@
 package com.dt.common;
 
+import com.dt.module.dex.entity.LebReadResult;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -126,18 +127,36 @@ public class TransformUtils {
         return b1 << 24 | (b2 & 0xFF) << 16 | (b3 & 0xFF) << 8 | (b4 & 0xFF);
     }
 
-    public static int readUnsignedLeb128(byte[] src, int offset) {
+    /**
+     * 读取uleb128数据;
+     *
+     * @param src        原始数据数组;
+     * @param offset     开始读取的位置;
+     * @param readResult 读取的结果;
+     * @return 读取的数据结果;
+     */
+    public static int readUnsignedLeb128(byte[] src, int offset, LebReadResult readResult) {
+
         int result = 0;
         int count = 0;
         int cur;
-        do {
-            cur = copy(src, offset, 1)[0];
-            cur &= 0xff;
-            result |= (cur & 0x7f) << count * 7;
-            count++;
-            offset++;
-            //DexParser.POSITION++;
-        } while ((cur & 0x80) == 128 && count < 5);
+        try {
+
+            do {
+                cur = copy(src, offset, 1)[0];
+                cur &= 0xff;
+                result |= (cur & 0x7f) << count * 7;
+                count++;
+                offset++;
+            } while ((cur & 0x80) == 128 && count < 5);
+
+            if (null != readResult) {
+                readResult.setReadCnt(count);
+                readResult.setResult(result);
+            }
+        } catch (Exception e) {
+            log.error("readUnsignedLeb128 Exception:[{}], {}", e.getMessage(), e);
+        }
         return result;
     }
 

@@ -271,40 +271,174 @@ public class ParseDexFileService implements IParseDexFile {
 
 
             ///////////////////////// 读取Dex类的所有信息 /////////////////////////
-            log.info("=================== Dex 读取类的所有信息 Start ===================");
             int dexClassDefsSize = TransformUtils.byte2Int(dexFileInfo.getDexHeader().getClassDefsSize());
+            int dexClassDefsOff = TransformUtils.byte2Int(dexFileInfo.getDexHeader().getClassDefsOff());
+            log.info("=================== Dex 读取类的所有信息 Start [{}][{}] ===================",
+                    dexClassDefsOff, dexClassDefsSize);
             for (int i = 0; i < dexClassDefsSize; i++) {
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 索引,指向typeIds,表示类信息;
-                int classIdx = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                int classIdx = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 访问标识,如public;
-                int accessFlags = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                int accessFlags = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 索引,指向typeIds,标识父类信息;
-                int superclassIdx = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                int superclassIdx = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 指向DexTypeList的偏移地址,表示接口信息;
-                int interfacesOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                int interfacesOff = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 索引,指向stringIds,表示源文件名称;
-                int sourceFileIdx = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                int sourceFileIdx = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 指向annotations_directory_item的偏移地址,表示注解信息;
-                int annotationsOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                int annotationsOff = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 指向class_data_item的偏移地址,表示类的数据部分;
-                int classDataOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
+                int classDataOff = TransformUtils.bytes2Int(tmpFourBuffer);
                 dexFileInputStream.read(tmpFourBuffer, 0, DEX_FIELD_FOUR_SIZE);
                 // 指向DexEncodedArray的偏移地址,表示类的静态数据;
-                int staticValueOff = TransformUtils.bytes2UnsignedShort(tmpFourBuffer);
-
+                int staticValueOff = TransformUtils.bytes2Int(tmpFourBuffer);
+                // 新建结构体,加入到dex文件信息;
                 ClassDefInfo classDefInfoNode = new ClassDefInfo(classIdx, accessFlags, superclassIdx,
                         interfacesOff, sourceFileIdx, annotationsOff, classDataOff, staticValueOff);
                 classDefInfoNode.getParseInfo().setClassName(dexFileInfo.getDexStringInfos().get(sourceFileIdx).getData());
                 dexFileInfo.getClassDefs().add(classDefInfoNode);
-
                 log.info("类信息=>类:[{}]", classDefInfoNode.getParseInfo().getClassName());
+//                // 解析接口信息;
+//                int interfacesIdx = TransformUtils.bytes2Int(TransformUtils.copy(fileByteArray, interfacesOff, 4));
+//                log.info("类信息=>接口数量:[{}]", interfacesIdx);
+//                if(interfacesIdx < dexFileInfo.getDexProtoInfos().size()) {
+//                    log.info("类信息=>接口信息:[{}]", dexFileInfo.getDexProtoInfos().get(interfacesIdx).getProtoInfo());
+//                } else {
+//                    log.info("类信息=>获取接口信息出错");
+//                }
+                // 解析类的信息;
+                log.info("类信息的偏移地址:[{}]", classDataOff);
+                if (0 == classDataOff) {
+                    continue;
+                }
+
+
+                // 读取DexClassDataHead;
+                int readOffset = classDataOff;
+                LebReadResult readResult = new LebReadResult();
+                TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                log.info("静态字段个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                classDefInfoNode.getClassDataItem().setStaticFieldSize(readResult.getResult());
+                readOffset += readResult.getReadCnt();
+
+                TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                log.info("实例字段个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                classDefInfoNode.getClassDataItem().setInstanceFieldSize(readResult.getResult());
+                readOffset += readResult.getReadCnt();
+
+                TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                log.info("直接方法个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                classDefInfoNode.getClassDataItem().setDirectMethodsSize(readResult.getResult());
+                readOffset += readResult.getReadCnt();
+
+                TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                log.info("虚方法个数:[{}],读取字节数:[{}]", readResult.getResult(), readResult.getReadCnt());
+                classDefInfoNode.getClassDataItem().setVirtualMethodsSize(readResult.getResult());
+                readOffset += readResult.getReadCnt();
+
+                // 读取静态字段数据;=>ClassDefInfo.DexField
+                int staticFieldsSize = classDefInfoNode.getClassDataItem().getStaticFieldSize();
+                for (int j = 0; j < staticFieldsSize; j++) {
+                    ClassDefInfo.DexField staticFieldInfo = new ClassDefInfo.DexField();
+                    TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                    if (readResult.getResult() < dexFileInfo.getFieldIds().size()) {
+                        staticFieldInfo.setFieldIdx(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                        staticFieldInfo.setAccessFlag(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        log.info("静态字段[{}]:fieldId:[{}],访问标识:[{}]", j,
+                                dexFileInfo.getFieldIds().get(staticFieldInfo.getFieldIdx()),
+                                staticFieldInfo.getAccessFlag());
+                    } else {
+                        log.error("读取静态字段 error with offset [{}], exit with [{}] < [{}]", i,
+                                readResult.getResult(),
+                                dexFileInfo.getFieldIds().size());
+                        System.exit(0);
+                    }
+                }
+
+                // 读取实例字段数据;=>ClassDefInfo.DexField
+                int instanceFieldsSize = classDefInfoNode.getClassDataItem().getInstanceFieldSize();
+                for (int j = 0; j < instanceFieldsSize; j++) {
+                    ClassDefInfo.DexField staticFieldInfo = new ClassDefInfo.DexField();
+                    TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                    if (readResult.getResult() < dexFileInfo.getFieldIds().size()) {
+                        staticFieldInfo.setFieldIdx(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                        staticFieldInfo.setAccessFlag(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        log.info("实例字段[{}]:fieldId:[{}],访问标识:[{}]", j,
+                                dexFileInfo.getFieldIds().get(staticFieldInfo.getFieldIdx()),
+                                staticFieldInfo.getAccessFlag());
+                    } else {
+                        log.error("读取实例字段 error with offset [{}], exit with [{}] < [{}]", i,
+                                readResult.getResult(),
+                                dexFileInfo.getFieldIds().size());
+                        System.exit(0);
+                    }
+                }
+
+                // 读取直接方法数据;=>ClassDefInfo.DexMethod
+                int directMethodsSize = classDefInfoNode.getClassDataItem().getDirectMethodsSize();
+                for (int j = 0; j < directMethodsSize; j++) {
+                    ClassDefInfo.DexMethod directMethodInfo = new ClassDefInfo.DexMethod();
+                    TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                    if (readResult.getResult() < dexFileInfo.getMethodIds().size()) {
+                        directMethodInfo.setMethodIdx(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                        directMethodInfo.setAccessFlags(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                        directMethodInfo.setCodeOff(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        log.info("直接方法信息:idx:[{}]:methodId:[{}],访问标识:[{}],codeOff:[{}]", j,
+                                dexFileInfo.getMethodIds().get(directMethodInfo.getMethodIdx()).getNameIdx(),
+                                directMethodInfo.getAccessFlags(),
+                                directMethodInfo.getCodeOff());
+                    } else {
+                        log.error("读取直接方法信息 error with offset [{}], exit with [{}] < [{}]", i,
+                                readResult.getResult(),
+                                dexFileInfo.getMethodIds().size());
+                        System.exit(0);
+                    }
+                }
+
+                // 读取虚方法数据;=>ClassDefInfo.DexMethod
+                int virtualMethodsSize = classDefInfoNode.getClassDataItem().getVirtualMethodsSize();
+                for (int j = 0; j < virtualMethodsSize; j++) {
+                    ClassDefInfo.DexMethod virtualMethodInfo = new ClassDefInfo.DexMethod();
+                    TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                    if (readResult.getResult() < dexFileInfo.getMethodIds().size()) {
+                        virtualMethodInfo.setMethodIdx(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                        virtualMethodInfo.setAccessFlags(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        TransformUtils.readUnsignedLeb128(fileByteArray, readOffset, readResult);
+                        virtualMethodInfo.setCodeOff(readResult.getResult());
+                        readOffset += readResult.getReadCnt();
+                        log.info("虚方法信息:idx:[{}]:methodId:[{}],访问标识:[{}],codeOff:[{}]", j,
+                                dexFileInfo.getMethodIds().get(virtualMethodInfo.getMethodIdx()).getNameIdx(),
+                                virtualMethodInfo.getAccessFlags(),
+                                virtualMethodInfo.getCodeOff());
+                    } else {
+                        log.error("读取虚方法信息 error with offset [{}], exit with [{}] < [{}]", i,
+                                readResult.getResult(),
+                                dexFileInfo.getMethodIds().size());
+                        System.exit(0);
+                    }
+                }
 
 
             }
